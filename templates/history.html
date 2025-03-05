@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        .container {
+            width: 60%;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .history-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #667eea;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .history-button:hover {
+            background-color: #5567c9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #667eea;
+            color: white;
+        }
+        a {
+            text-decoration: none;
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="history-button" onclick="window.location.href='/'">🏠 Home</button>
+        <h2>Message History for {{ username }}</h2> <!-- Show logged-in user -->
+        
+        {% if messages %}
+    <table>
+        <tr>
+            <th>Recipients</th>
+            <th>Message</th>
+            <th>File</th>
+            <th>Date</th>
+        </tr>
+        {% for msg in messages %}
+        <tr>
+            <td>{{ msg.recipients }}</td>
+            <td>{{ msg.message }}</td>
+            <td>
+                {% if msg.file_url %}
+                    <a href="{{ msg.file_url }}" target="_blank">View File</a>
+                {% else %}
+                    No File
+                {% endif %}
+            </td>
+            <td>{{ msg.timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No message history found.</p>
+{% endif %}
+
+    </div>
+</body>
+</html>

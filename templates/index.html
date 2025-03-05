@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AcadmiChat</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: url('campus_photo.jpg') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 50%;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+            color: black;
+            position: relative;
+        }
+        .logo {
+            width: 120px;
+            height: auto;
+            margin-bottom: 5px;
+        }
+        input, button, select {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s ease-in-out;
+        }
+        button:hover {
+            background: #5567c9;
+        }
+        .history-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #667eea;
+            color: white;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .history-button:hover {
+            background: #5567c9;
+        }
+        /* Align Class & Section dropdowns properly */
+.selection-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 80%;
+    margin: 10px auto;
+    gap: 15px;
+}
+
+.selection-container label {
+    width: 30%;
+    text-align: left;
+    font-weight: bold;
+}
+
+.selection-container select {
+    width: 50%;
+    padding: 8px;
+    font-size: 14px;
+}
+
+/* Hide the "Sending message..." text initially */
+.loading {
+    display: none;
+    color: #333;
+    font-size: 14px;
+    margin-top: 10px;
+    text-align: center;
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/history" class="history-button">📜 View History</a>
+
+        <img src="logo-scsit.png" alt="College Logo" class="logo">
+        <h2>AcadmiChat</h2>
+        <p>Welcome, {{ session['user'] }} | <a href="{{ url_for('logout') }}">Logout</a></p>
+
+        <input type="text" id="search" placeholder="Search students...">
+        <div id="results"></div>
+
+        <h3>Send Message</h3>
+        <p>Selected: <span id="selected-person">None</span></p>
+        <input type="text" id="message" placeholder="Enter your message...">
+
+        <!-- File Upload -->
+        <input type="file" id="fileUpload">
+        <p id="selectedFile"></p>
+
+        <!-- ✅ Class & Section Selection in One Row -->
+        <div class="selection-container">
+            <label for="class-select">Class:</label>
+            <select id="class-select">
+                <option value="all">All</option>
+                <option value="BCA">BCA</option>
+                <option value="MCA">MCA</option>
+                <option value="M.Tech">M.Tech</option>
+                <option value="M.Sc">M.Sc</option>
+            </select>
+
+            <label for="section-select">Section:</label>
+            <select id="section-select">
+                <option value="both">Both</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+            </select>
+        </div>
+
+        <label for="recipient-type">Send to:</label>
+        <select id="recipient-type">
+            <option value="students">Only Students</option>
+            <option value="parents">Only Parents</option>
+            <option value="both">Students & Parents</option>
+        </select>
+
+        <button id="send">Send to Selected Students</button>
+        <button id="sendAll">Send to All Students</button>
+        <p class="loading" id="loading">Sending message...</p>
+    </div>
+
+<script>
+$(document).ready(function () {
+    let selectedStudents = [];
+
+    // ✅ Handle File Upload Display
+    $("#fileUpload").on("change", function () {
+        let file = this.files[0];
+        $("#selectedFile").text(file ? "Selected file: " + file.name : "");
+    });
+
+    // ✅ Search Functionality
+    $("#search").on("keyup", function () {
+        let query = $(this).val().trim();
+        let selectedClass = $("#class-select").val();
+        let selectedSection = $("#section-select").val();
+
+        if (query.length > 1) {
+            $.get("/search", { query: query, class: selectedClass, section: selectedSection }, function (data) {
+                let results = data.map(student =>
+                    `<div class='result-item' data-id='${student.id}' data-name='${student.name}'>
+                        ${student.name} - ${student.class} (${student.section})
+                    </div>`
+                ).join("");
+                $("#results").html(results);
+            }).fail(function (xhr) {
+                console.error("Search Error:", xhr.responseText);
+            });
+        } else {
+            $("#results").html("");
+        }
+    });
+
+    // ✅ Student Selection
+    $(document).on("click", ".result-item", function () {
+        let id = parseInt($(this).data("id"));
+        let name = $(this).data("name");
+
+        if (!id) return;
+
+        if ($(this).hasClass("selected")) {
+            $(this).removeClass("selected");
+            selectedStudents = selectedStudents.filter(student => student.id !== id);
+        } else {
+            $(this).addClass("selected");
+            selectedStudents.push({ id, name });
+        }
+
+        $("#selected-person").text(selectedStudents.map(s => s.name).join(", ") || "None");
+    });
+
+    // ✅ Send Message Function
+    function sendMessage(sendToAll) {
+        let message = $("#message").val().trim();
+        let fileInput = document.getElementById("fileUpload");
+        let file = fileInput.files[0];
+        let selectedClass = $("#class-select").val();
+        let selectedSection = $("#section-select").val();
+        let recipientType = $("#recipient-type").val();
+
+        if (!message && !file) {
+            alert("Enter a message or attach a file!");
+            return;
+        }
+
+        let formData = new FormData();
+        formData.append("message", message);
+        formData.append("class", selectedClass);
+        formData.append("section", selectedSection);
+        formData.append("recipient_type", recipientType);
+
+        if (file) {
+            formData.append("file", file);
+        }
+
+        if (!sendToAll) {
+            if (selectedStudents.length === 0) {
+                alert("Please select at least one student!");
+                return;
+            }
+            selectedStudents.forEach(student => {
+                formData.append("recipients[]", student.id);
+            });
+        }
+
+        let url = sendToAll ? "/send_message_all" : "/send_message";
+
+        // ✅ Debugging: Log Form Data Before Sending
+        console.log("Sending Data:", Object.fromEntries(formData));
+
+        $("#loading").show();
+        $.ajax({
+            url: url,
+            type: "POST",
+            processData: false,
+            contentType: false,
+            data: formData,
+            success: function (response) {
+                console.log("Response:", response);
+                alert(response.success || response.error);
+                $("#loading").hide();
+            },
+            error: function (xhr, status, error) {
+                console.error("AJAX Error:", xhr.responseText);
+                alert("Error: " + xhr.status + " - " + xhr.responseText);
+                $("#loading").hide();
+            }
+        });
+    }
+
+    // ✅ Fix: Ensure Click Events Are Properly Bound
+    $(document).on("click", "#send", function () {
+        sendMessage(false);
+    });
+
+    $(document).on("click", "#sendAll", function () {
+        sendMessage(true);
+    });
+});
+
+</script>
+</body>
+</html>
